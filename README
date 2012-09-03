@@ -1,0 +1,8 @@
+Gauhceで実装したエディタ向けバッファデータ構造
+・GapBuffer
+・ChunkGapBuffer
+・VectorBuffer (パフォーマンス比較用。実装は中途半端)
+・PiceTable (まだ未実装)
+
+全体的に、テスト・デバッグは中途半端です。
+
