@@ -17,10 +17,6 @@
 
 (select-module buffer.chunk-gap-buffer)
 
-(define-class <gb-chunk> (<gb-chunk-base>)
-  ()
-  )
-
 (define (insert-obj chunk line obj)
   (let1 line (conv-index chunk line #f)
     (receive (num dest)
@@ -142,7 +138,7 @@
            (move-gap chunk beg)
            (vector->list vec (@ chunk.gap-end) end)])))))
 
-(define-class <chunk-gap-buffer> (<chunk-gap-buffer-base>)
+(define-class <chunk-gap-buffer> (<chunk-gap-buffer-base> <buffer>)
   ()
   )
 

@@ -1,13 +1,12 @@
 
 (define-module buffer.chunk-gap-buffer-base
-  (use buffer)
   (use buffer.util)
   (export-all)
   )
 
 (select-module buffer.chunk-gap-buffer-base)
 
-(define-class <gb-chunk-base> ()
+(define-class <gb-chunk> ()
   (
    (buf :init-keyword :buf)
    (gap-begin :init-keyword :gap-begin)
@@ -105,7 +104,7 @@
       [else (values beg end)])))
 
 
-(define-class <chunk-gap-buffer-base> (<buffer>)
+(define-class <chunk-gap-buffer-base> ()
   (
    (cur :init-keyword :cur)
    (head)
