@@ -6,7 +6,6 @@
   (use buffer)
   (use buffer.util)
   (use buffer.chunk-gap-buffer-base)
-  (use buffer.vec-buffer)
   (export 
     <pt-buffer> make-pt-buffer
     buf-insert buf-insert-seq
@@ -150,7 +149,7 @@
        (@! pt.cur (@ pt.cur.prev))
        (delete-chunk pt (@ pt.cur.next))]
       [(@ pt.cur.next)
-       (@! pt.cur pt.cur.next)
+       (@! pt.cur (@ pt.cur.next))
        (@inc! pt.cline (chunk-length (@ pt.cur)))
        (delete-chunk pt (@ pt.cur.prev))]
       [else ;;if only one chunk is initialization
@@ -317,11 +316,52 @@
               (@dec! pt.cpiece c)
               (loop (+ i c)))))))))
 
+;;
+;;<list-buffer>
+(define-class <list-buffer> (<sequence>)
+  (
+   (node-size :init-keyword :node-size)
+   (len :init-value 0)
+   (head)
+   (tail)
+   ))
+
+(define-method initialize ((lb <list-buffer>) initargs)
+  (next-method lb initargs)
+  (let1 dummy (cons #f '())
+    (@! lb.head dummy)
+    (@! lb.tail dummy)))
+
+(define (lb-add lb obj)
+  (let1 i (check-lb lb)
+    (@inc! lb.len)
+    (vector-set! (car (@ lb.tail)) i obj)))
+
+(define (check-lb lb)
+  (rlet1 i (remainder (@ lb.len) (@ lb.node-size))
+    (when (zero? i)
+      (let1 tail (cons (make-vector (@ lb.node-size)) '())
+        (set-cdr! (@ lb.tail) tail)
+        (@! lb.tail tail)))))
+
+(define (lb-add-seq lb seq)
+  (for-each
+    (cut lb-add lb <>)
+    seq))
+
+(define (lb-ref lb index)
+  (vector-ref (list-ref (cdr (@ lb.head)) (quotient index (@ lb.node-size)))
+              (remainder index (@ lb.node-size))))
+
+(define-method referencer ((buf <list-buffer>)) lb-ref)
+
+;;
+;;<pt-buffer>
+
 (define-class <pt-buffer> (<buffer>)
   (
    (entry :init-form (rlet1 vec (make-vector entry-len)
-                       (vector-set! vec entry-add
-                                    (make-vec-buffer 15))))
+                       (vector-set! vec entry-add (make <list-buffer> :node-size 25))))
    (pt :init-keyword :pt)
    )
   )
@@ -341,17 +381,15 @@
                   :all-cline 0)))
 
 (define-method buf-insert ((buf <pt-buffer>) index obj)
-  (let* ([entry (vector-ref (@ buf.entry) entry-add)]
-         [len (buf-length entry)])
-    (pt-insert (@ buf.pt) index len 1)
-    (buf-insert entry len obj)))
+  (let1 entry (vector-ref (@ buf.entry) entry-add)
+    (pt-insert (@ buf.pt) index (@ entry.len) 1)
+    (lb-add entry obj)))
 
 (define-method buf-insert-seq ((buf <pt-buffer>) index seq)
-  (let* ([entry (vector-ref (@ buf.entry) entry-add)]
-         [len (buf-length entry)]
-         [seq-len (size-of seq)])
-    (pt-insert (@ buf.pt) index len seq-len)
-    (buf-insert-seq entry len seq)))
+  (let ([entry (vector-ref (@ buf.entry) entry-add)]
+        [seq-len (size-of seq)])
+    (pt-insert (@ buf.pt) index (@ entry.len) seq-len)
+    (lb-add-seq entry seq)))
 
 (define-method buf-delete ((buf <pt-buffer>) beg :optional (end #f))
   (let1 end (or end (@ buf.pt.all-cpiece))
@@ -376,9 +414,8 @@
                           cell)
                     cell)
                   (+ i 1)))
-          (reverse cell)))
-      )
-    ))
+          (reverse cell))))))
 
 (define-method buf-length ((buf <pt-buffer>))
   (@ buf.pt.all-cpiece))
+
