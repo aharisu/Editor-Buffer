@@ -10,7 +10,6 @@
     buf-insert buf-insert-seq
     buf-delete 
     buf-get buf-get-seq
-    buf-copy!
     buf-length
     )
   )
@@ -179,7 +178,7 @@
                           (delete-chunk buf cur))
                         (@! buf.cur (@ cur.next))
                         (@inc!  buf.cline (chunk-length (@ buf.cur)))
-                        (loop 0 (- end cdel) total)))))
+                        (loop 0 (- total-count total) total)))))
       (@dec! buf.cline total)
       (@dec! buf.all-cline total))))
 

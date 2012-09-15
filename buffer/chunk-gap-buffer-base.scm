@@ -108,8 +108,8 @@
   (
    (cur :init-keyword :cur)
    (head)
-   (cline :init-value 0)
-   (all-cline :init-value 0)
+   (cline :init-keyword :cline :init-value 0)
+   (all-cline :init-keyword :all-cline :init-value 0 )
    ))
 
 (define-method initialize ((c <chunk-gap-buffer-base>) initargs)
