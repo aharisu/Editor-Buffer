@@ -9,7 +9,6 @@
     buf-insert buf-insert-seq
     buf-delete 
     buf-get buf-get-seq
-    buf-copy!
     buf-length
     )
   )
@@ -32,25 +31,24 @@
         ))
 
 (define-method buf-insert ((buf <gap-buffer>) index obj)
-  (let1 index (conv-index buf index #f)
-    (unless (check-buf buf index 0)
-      (move-gap buf index))
-    (vector-set! (@ buf.buf)
-                 (@ buf.gap-begin)
-                 obj)
-    (@inc! buf.gap-begin)))
+  (unless (check-buf buf (conv-index buf index #f) 0)
+    (move-gap buf (conv-index buf index #f)))
+  (vector-set! (@ buf.buf)
+               (@ buf.gap-begin)
+               obj)
+  (@inc! buf.gap-begin))
 
 (define-method buf-insert-seq ((buf <gap-buffer>) index seq)
-  (let ([seq-len (size-of seq)]
-        [index (conv-index buf index #f)])
-    (unless (check-buf buf index seq-len)
-      (move-gap buf index))
-    (let1 vec (@ buf.buf)
-      (for-each
-        (lambda (obj)
-          (vector-set! vec (@ buf.gap-begin) obj)
-          (@inc! buf.gap-begin))
+  (let ([seq-len (size-of seq)])
+    (unless (check-buf buf (conv-index buf index #f) seq-len)
+      (move-gap buf (conv-index buf index #f)))
+    (let ([vec (@ buf.buf)]
+          [g-beg (@ buf.gap-begin)])
+      (for-each-with-index
+        (lambda (i obj)
+          (vector-set! vec (+ i g-beg) obj))
         seq))
+    (@inc! buf.gap-begin seq-len)
     seq-len))
 
 (define-method buf-delete ((buf <gap-buffer>) beg :optional (end #f))
@@ -58,23 +56,23 @@
     (conv-begin-end buf beg (or end (buf-length buf)))
     (let ([g-beg (@ buf.gap-begin)]
           [g-end (@ buf.gap-end)])
-    (cond
-      [(and (< beg g-beg) (>= end g-end))
-       (begin0 (+ (- g-beg beg) (- end g-end))
-         (@! buf.gap-begin beg)
-         (@! buf.gap-end end))]
-      [(< end g-beg)
-       (move-gap buf end)
-       (begin0 (- g-beg beg)
-         (@! buf.gap-begin beg))]
-      [(= beg g-gap)
-       (begin0 (- end g-gap)
-         (@! buf.gap-end end))]
-      [(> beg g-end)
-       (move-gap buf beg)
-       (begin0 (- c g-end)
-         (@! buf.gap-end end))]
-      [else 0]))))
+      (cond
+        [(and (< beg g-beg) (>= end g-end))
+         (begin0 (+ (- g-beg beg) (- end g-end))
+           (@! buf.gap-begin beg)
+           (@! buf.gap-end end))]
+        [(< end g-beg)
+         (move-gap buf end)
+         (begin0 (- g-beg beg)
+           (@! buf.gap-begin beg))]
+        [(= beg g-end)
+         (begin0 (- end g-end)
+           (@! buf.gap-end end))]
+        [(> beg g-end)
+         (move-gap buf beg)
+         (begin0 (- end g-end)
+           (@! buf.gap-end end))]
+        [else 0]))))
 
 (define-method buf-get ((buf <gap-buffer>) index)
   (vector-ref (@ buf.buf) (conv-index buf index #t)))
@@ -103,14 +101,6 @@
                       c)))]
         [else '()]))))
 
-(define-method buf-copy! ((target <buffer>) tindex (source <gap-buffer>) beg :optional (end #f))
-  (let1 count (if end (- end beg) (- (buf-length source) beg))
-    (unless (zero? count)
-      (buf-insert-seq target
-                      (buf-get-seq source count)
-                      tindex)
-      (buf-delete source beg count))))
-
 (define-method buf-length ((buf <gap-buffer>))
   (- (vector-length (@ buf.buf)) (gap-length buf)))
 
@@ -132,10 +122,10 @@
          [new-buf (make-vector new-len)])
     (if (zero? len)
       (@! buf.gap-begin old-len)
-      (move-gap buf len))
+      (move-gap buf (conv-index buf (buf-length buf) #f)))
     (vector-copy! new-buf 0 (@ buf.buf))
     (@! buf.buf new-buf)
-    (@! buf.gap-end (vector-length new-buf))))
+    (@! buf.gap-end new-len)))
 
 (define (move-gap buf index)
   (cond 
